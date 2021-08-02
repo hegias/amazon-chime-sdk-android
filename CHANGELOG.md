@@ -1,3 +1,9 @@
+## Unreleased
+
+### Changed
+* Changed the silence threshold to 0.2 from 0.0 for `DefaultActiveSpeakerPolicy` (Issue #259)
+* Expose variables to `DefaultActiveSpeakerPolicy`
+
 ## [0.11.6] - 2021-07-21
 
 ### Fixed
