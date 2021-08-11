@@ -170,8 +170,8 @@ class MeetingActivity : AppCompatActivity(),
             val joinMeetingResponse = gson.fromJson(response, JoinMeetingResponse::class.java)
             MeetingSessionConfiguration(
                 CreateMeetingResponse(joinMeetingResponse.joinInfo.meetingResponse.meeting),
-                CreateAttendeeResponse(joinMeetingResponse.joinInfo.attendeeResponse.attendee),
-                ::urlRewriter
+                CreateAttendeeResponse(joinMeetingResponse.joinInfo.attendeeResponse.attendee)
+                //::urlRewriter
             )
         } catch (exception: Exception) {
             logger.error(

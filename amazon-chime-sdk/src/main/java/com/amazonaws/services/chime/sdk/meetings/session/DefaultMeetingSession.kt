@@ -35,24 +35,16 @@ import com.amazonaws.services.chime.sdk.meetings.internal.video.DefaultVideoClie
 import com.amazonaws.services.chime.sdk.meetings.internal.video.DefaultVideoClientStateController
 import com.amazonaws.services.chime.sdk.meetings.internal.video.TURNRequestParams
 import com.amazonaws.services.chime.sdk.meetings.realtime.DefaultRealtimeController
+import com.amazonaws.services.chime.sdk.meetings.utils.logger.ConsoleLogger
+import com.amazonaws.services.chime.sdk.meetings.utils.logger.LogLevel
 import com.amazonaws.services.chime.sdk.meetings.utils.logger.Logger
 
 class DefaultMeetingSession @JvmOverloads constructor(
     override val configuration: MeetingSessionConfiguration,
-    override val logger: Logger,
+    override var logger: Logger?,
     context: Context,
-    eglCoreFactory: EglCoreFactory = DefaultEglCoreFactory(),
-    eventReporterFactory: EventReporterFactory = DefaultMeetingEventReporterFactory(
-        context,
-        IngestionConfiguration(
-            MeetingEventClientConfiguration(configuration.credentials.joinToken,
-                                            configuration.meetingId,
-                                            configuration.credentials.attendeeId),
-            configuration.urls.ingestionURL ?: "",
-            configuration.urls.ingestionURL.isNullOrEmpty()
-        ),
-        logger
-    )
+    var eglCoreFactory: EglCoreFactory?, //= DefaultEglCoreFactory()
+    eventReporterFactory: EventReporterFactory?
 ) : MeetingSession {
 
     override val audioVideo: AudioVideoFacade
@@ -60,21 +52,39 @@ class DefaultMeetingSession @JvmOverloads constructor(
     override val eventAnalyticsController: EventAnalyticsController
 
     init {
+
+        if (logger == null) {
+            logger = ConsoleLogger(LogLevel.OFF)
+        }
+
+        if (eglCoreFactory == null) {
+            eglCoreFactory = DefaultEglCoreFactory()
+        }
+
+        val metricsCollector =
+            DefaultClientMetricsCollector()
         val meetingStatsCollector = DefaultMeetingStatsCollector(logger)
-
+        val eventReporterFactory = DefaultMeetingEventReporterFactory(
+            context,
+            IngestionConfiguration(
+                context,
+                MeetingEventClientConfiguration(configuration.credentials.joinToken,
+                                                configuration.meetingId,
+                                                configuration.credentials.attendeeId),
+                configuration.urls.ingestionURL ?: "",
+                configuration.urls.ingestionURL.isNullOrEmpty()
+            ),
+        logger)
         val eventReporter = eventReporterFactory.createEventReporter()
-
         eventAnalyticsController = DefaultEventAnalyticsController(
             logger,
             configuration,
             meetingStatsCollector,
             eventReporter
         )
-
-        val metricsCollector = DefaultClientMetricsCollector()
         val audioClientObserver =
             DefaultAudioClientObserver(
-                logger,
+                logger!!,
                 metricsCollector,
                 configuration,
                 meetingStatsCollector,
@@ -89,7 +99,7 @@ class DefaultMeetingSession @JvmOverloads constructor(
         val audioClientController =
             DefaultAudioClientController(
                 context,
-                logger,
+                logger!!,
                 audioClientObserver,
                 audioClient,
                 meetingStatsCollector,
@@ -106,13 +116,12 @@ class DefaultMeetingSession @JvmOverloads constructor(
 
         val videoClientStateController =
             DefaultVideoClientStateController(
-                logger
+                logger!!
             )
 
         val videoClientObserver =
             DefaultVideoClientObserver(
-                context,
-                logger,
+                logger!!,
                 turnRequestParams,
                 metricsCollector,
                 videoClientStateController,
@@ -124,23 +133,23 @@ class DefaultMeetingSession @JvmOverloads constructor(
         val videoClientController =
             DefaultVideoClientController(
                 context,
-                logger,
+                logger!!,
                 videoClientStateController,
                 videoClientObserver,
                 configuration,
-                videoClientFactory,
-                eglCoreFactory,
+                DefaultVideoClientFactory(),
+                eglCoreFactory!!
                 eventAnalyticsController
             )
 
-        val videoTileFactory = DefaultVideoTileFactory(logger)
+        val videoTileFactory = DefaultVideoTileFactory(logger!!)
 
         val videoTileController =
             DefaultVideoTileController(
-                logger,
+                logger!!,
                 videoClientController,
                 videoTileFactory,
-                eglCoreFactory,
+                eglCoreFactory!!
                 meetingStatsCollector
             )
         videoClientObserver.subscribeToVideoTileChange(videoTileController)
