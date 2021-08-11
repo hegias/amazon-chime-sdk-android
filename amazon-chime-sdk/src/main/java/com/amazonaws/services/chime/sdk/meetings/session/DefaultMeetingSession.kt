@@ -25,23 +25,34 @@ import com.amazonaws.services.chime.sdk.meetings.internal.video.DefaultVideoClie
 import com.amazonaws.services.chime.sdk.meetings.internal.video.DefaultVideoClientStateController
 import com.amazonaws.services.chime.sdk.meetings.internal.video.TURNRequestParams
 import com.amazonaws.services.chime.sdk.meetings.realtime.DefaultRealtimeController
+import com.amazonaws.services.chime.sdk.meetings.utils.logger.ConsoleLogger
+import com.amazonaws.services.chime.sdk.meetings.utils.logger.LogLevel
 import com.amazonaws.services.chime.sdk.meetings.utils.logger.Logger
 
 class DefaultMeetingSession(
     override val configuration: MeetingSessionConfiguration,
-    override val logger: Logger,
+    override var logger: Logger?,
     context: Context,
-    eglCoreFactory: EglCoreFactory = DefaultEglCoreFactory()
+    var eglCoreFactory: EglCoreFactory? //= DefaultEglCoreFactory()
 ) : MeetingSession {
 
     override val audioVideo: AudioVideoFacade
 
     init {
+
+        if (logger == null) {
+            logger = ConsoleLogger(LogLevel.OFF)
+        }
+
+        if (eglCoreFactory == null) {
+            eglCoreFactory = DefaultEglCoreFactory()
+        }
+
         val metricsCollector =
             DefaultClientMetricsCollector()
         val audioClientObserver =
             DefaultAudioClientObserver(
-                logger,
+                logger!!,
                 metricsCollector,
                 configuration
             )
@@ -54,7 +65,7 @@ class DefaultMeetingSession(
         val audioClientController =
             DefaultAudioClientController(
                 context,
-                logger,
+                logger!!,
                 audioClientObserver,
                 audioClient
             )
@@ -69,11 +80,11 @@ class DefaultMeetingSession(
 
         val videoClientStateController =
             DefaultVideoClientStateController(
-                logger
+                logger!!
             )
         val videoClientObserver =
             DefaultVideoClientObserver(
-                logger,
+                logger!!,
                 turnRequestParams,
                 metricsCollector,
                 videoClientStateController,
@@ -83,22 +94,22 @@ class DefaultMeetingSession(
         val videoClientController =
             DefaultVideoClientController(
                 context,
-                logger,
+                logger!!,
                 videoClientStateController,
                 videoClientObserver,
                 configuration,
                 DefaultVideoClientFactory(),
-                eglCoreFactory
+                eglCoreFactory!!
             )
 
-        val videoTileFactory = DefaultVideoTileFactory(logger)
+        val videoTileFactory = DefaultVideoTileFactory(logger!!)
 
         val videoTileController =
             DefaultVideoTileController(
-                logger,
+                logger!!,
                 videoClientController,
                 videoTileFactory,
-                eglCoreFactory
+                eglCoreFactory!!
             )
         videoClientObserver.subscribeToVideoTileChange(videoTileController)
 

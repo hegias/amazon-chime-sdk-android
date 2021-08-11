@@ -5,6 +5,7 @@
 
 package com.amazonaws.services.chime.sdk.meetings.internal.video
 
+import android.util.Log
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.AudioVideoObserver
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoFrame
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoPauseState
@@ -296,7 +297,7 @@ class DefaultVideoClientObserver(
         }
     }
 
-    override fun onDataMessageReceived(dataMessages: Array<mediaDataMessage>?) {
+    override fun onDataMessageReceived(dataMessages: Array<com.xodee.client.video.DataMessage>?) {
         if (dataMessages == null) return
 
         logger.debug(TAG, "onDataMessageReceived with size: ${dataMessages.size}")
@@ -336,6 +337,7 @@ class DefaultVideoClientObserver(
 
     override fun subscribeToReceiveDataMessage(topic: String, observer: DataMessageObserver) {
         dataMessageObserversByTopic.getOrPut(topic, { mutableSetOf() }).add(observer)
+        listDataMessageObserver()
     }
 
     override fun unsubscribeFromReceiveDataMessage(topic: String) {
@@ -350,5 +352,9 @@ class DefaultVideoClientObserver(
 
     private fun forEachVideoClientStateObserver(observerFunction: (observer: AudioVideoObserver) -> Unit) {
         ObserverUtils.notifyObserverOnMainThread(videoClientStateObservers, observerFunction)
+    }
+
+    override fun listDataMessageObserver() {
+        dataMessageObserversByTopic.keys.forEach { println(it); Log.e("PIPPO", it) }
     }
 }

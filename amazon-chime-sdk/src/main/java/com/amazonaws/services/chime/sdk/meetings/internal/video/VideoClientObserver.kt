@@ -66,4 +66,6 @@ interface VideoClientObserver : VideoClientDelegate, VideoClientLogListener,
      * @param topic: String - The topic to unsubscribe from events with.
      */
     fun unsubscribeFromReceiveDataMessage(topic: String)
+
+    fun listDataMessageObserver()
 }
