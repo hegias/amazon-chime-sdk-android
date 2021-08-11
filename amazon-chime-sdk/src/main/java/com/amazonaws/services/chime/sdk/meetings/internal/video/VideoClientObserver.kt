@@ -73,4 +73,5 @@ interface VideoClientObserver : VideoClientDelegate, VideoClientLogListener,
      * Use to set single use callback for primary meeting promotion.
      */
     var primaryMeetingPromotionObserver: PrimaryMeetingPromotionObserver?
+    fun listDataMessageObserver()
 }

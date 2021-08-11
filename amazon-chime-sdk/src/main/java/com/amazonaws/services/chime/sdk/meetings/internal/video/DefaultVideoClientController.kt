@@ -6,6 +6,7 @@
 package com.amazonaws.services.chime.sdk.meetings.internal.video
 
 import android.content.Context
+//import com.amazonaws.services.chime.sdk.BuildConfig
 import com.amazonaws.services.chime.sdk.meetings.analytics.EventAnalyticsController
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.PrimaryMeetingPromotionObserver
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.RemoteVideoSource
@@ -60,24 +61,21 @@ class DefaultVideoClientController(
 
     private val gson = Gson()
 
-    private val cameraCaptureSource: DefaultCameraCaptureSource
+//    private val cameraCaptureSource: CameraCaptureSource
     private var videoSourceAdapter = VideoSourceAdapter()
     private var isUsingInternalCaptureSource = false
 
     init {
         videoClientStateController.bindLifecycleHandler(this)
 
-        val surfaceTextureCaptureSourceFactory =
-            DefaultSurfaceTextureCaptureSourceFactory(logger, eglCoreFactory)
-        cameraCaptureSource =
-            DefaultCameraCaptureSource(
-                context,
-                logger,
-                surfaceTextureCaptureSourceFactory
-            ).apply {
-                eventAnalyticsController =
-                    this@DefaultVideoClientController.eventAnalyticsController
-            }
+//        val surfaceTextureCaptureSourceFactory =
+//            DefaultSurfaceTextureCaptureSourceFactory(logger, eglCoreFactory)
+//        cameraCaptureSource =
+//            DefaultCameraCaptureSource(
+//                context,
+//                logger,
+//                surfaceTextureCaptureSourceFactory
+//            )
     }
 
     private var videoClient: VideoClient? = null
@@ -107,12 +105,12 @@ class DefaultVideoClientController(
     override fun startLocalVideo() {
         if (!videoClientStateController.canAct(VideoClientState.INITIALIZED)) return
 
-        videoSourceAdapter.source = cameraCaptureSource
+//        videoSourceAdapter.source = cameraCaptureSource
         logger.info(TAG, "Setting external video source in media client to internal camera source")
         videoClient?.setExternalVideoSource(videoSourceAdapter, eglCore?.eglContext)
         videoClient?.setSending(true)
 
-        cameraCaptureSource.start()
+//        cameraCaptureSource.start()
         isUsingInternalCaptureSource = true
     }
 
@@ -150,14 +148,14 @@ class DefaultVideoClientController(
     }
 
     override fun getActiveCamera(): MediaDevice? {
-        if (isUsingInternalCaptureSource) {
-            return cameraCaptureSource.device
-        }
+//        if (isUsingInternalCaptureSource) {
+//            return cameraCaptureSource.device
+//        }
         return null
     }
 
     override fun switchCamera() {
-        cameraCaptureSource.switchCamera()
+//        cameraCaptureSource.switchCamera()
     }
 
     override fun setRemotePaused(isPaused: Boolean, videoId: Int) {
@@ -287,9 +285,31 @@ class DefaultVideoClientController(
         VideoClient.finalizeGlobals()
     }
 
+    private fun initializeAppDetailedInfo() {
+        val manufacturer = android.os.Build.MANUFACTURER
+        val model = android.os.Build.MODEL
+        val osVersion = android.os.Build.VERSION.RELEASE
+        val packageName = context.packageName
+        val packageInfo = context.packageManager.getPackageInfo(packageName, 0)
+        val appVer = packageInfo.versionName
+        val appCode = packageInfo.versionCode.toString()
+        val clientSource = "amazon-chime-sdk"
+        val sdkVersion = "0.9.1"
+
+        VideoClient.AppDetailedInfo.initialize(
+            String.format("Android %s", appVer),
+            appCode,
+            model,
+            manufacturer,
+            osVersion,
+            clientSource,
+            sdkVersion
+        )
+    }
+
     private fun stopInternalCaptureSourceIfRunning() {
         if (isUsingInternalCaptureSource) {
-            cameraCaptureSource.stop()
+//            cameraCaptureSource.stop()
             isUsingInternalCaptureSource = false
         }
     }

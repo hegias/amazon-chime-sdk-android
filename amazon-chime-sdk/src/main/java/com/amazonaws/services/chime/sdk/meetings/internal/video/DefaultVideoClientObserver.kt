@@ -5,7 +5,7 @@
 
 package com.amazonaws.services.chime.sdk.meetings.internal.video
 
-import android.content.Context
+import android.util.Log
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.AudioVideoObserver
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.PrimaryMeetingPromotionObserver
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.RemoteVideoSource
@@ -236,7 +236,68 @@ class DefaultVideoClientObserver(
         return DNSServerUtils.getAvailableDnsServers(context, logger)
     }
 
-    override fun onDataMessageReceived(dataMessages: Array<mediaDataMessage>?) {
+    private suspend fun doTurnRequest(): TURNCredentials? {
+        return withContext(ioDispatcher) {
+            try {
+                val response = StringBuffer()
+                logger.info(TAG, "Making TURN Request")
+                with(URL(turnRequestParams.turnControlUrl).openConnection() as HttpURLConnection) {
+                    requestMethod = "POST"
+                    doInput = true
+                    doOutput = true
+                    addRequestProperty(TOKEN_HEADER, "$TOKEN_KEY=${turnRequestParams.joinToken}")
+                    setRequestProperty(CONTENT_TYPE_HEADER, CONTENT_TYPE)
+                    val user_agent = System.getProperty(SYSPROP_USER_AGENT)
+                    logger.info(TAG, "User Agent while doing TURN request is $user_agent")
+                    setRequestProperty(USER_AGENT_HEADER, user_agent)
+                    val out = BufferedWriter(OutputStreamWriter(outputStream))
+                    out.write(
+                        JSONObject().put(
+                            MEETING_ID_KEY,
+                            turnRequestParams.meetingId
+                        ).toString()
+                    )
+                    out.flush()
+                    out.close()
+                    BufferedReader(InputStreamReader(inputStream)).use {
+                        var inputLine = it.readLine()
+                        while (inputLine != null) {
+                            response.append(inputLine)
+                            inputLine = it.readLine()
+                        }
+                        it.close()
+                    }
+                    if (responseCode == 200) {
+                        logger.info(TAG, "TURN Request Success")
+                        var responseObject = JSONObject(response.toString())
+                        val jsonArray =
+                            responseObject.getJSONArray(TURNCredentials.TURN_CREDENTIALS_RESULT_URIS)
+                        val uris = arrayOfNulls<String>(jsonArray.length())
+                        for (i in 0 until jsonArray.length()) {
+                            uris[i] = jsonArray.getString(i)
+                        }
+                        TURNCredentials(
+                            responseObject.getString(TURNCredentials.TURN_CREDENTIALS_RESULT_USERNAME),
+                            responseObject.getString(TURNCredentials.TURN_CREDENTIALS_RESULT_PASSWORD),
+                            responseObject.getString(TURNCredentials.TURN_CREDENTIALS_RESULT_TTL),
+                            uris
+                        )
+                    } else {
+                        logger.error(
+                            TAG,
+                            "TURN Request got error with Response code: $responseCode"
+                        )
+                        null
+                    }
+                }
+            } catch (exception: Exception) {
+                logger.error(TAG, "Exception while doing TURN Request: $exception")
+                null
+            }
+        }
+    }
+
+    override fun onDataMessageReceived(dataMessages: Array<com.xodee.client.video.DataMessage>?) {
         if (dataMessages == null) return
 
         logger.debug(TAG, "onDataMessageReceived with size: ${dataMessages.size}")
@@ -343,6 +404,7 @@ class DefaultVideoClientObserver(
 
     override fun subscribeToReceiveDataMessage(topic: String, observer: DataMessageObserver) {
         dataMessageObserversByTopic.getOrPut(topic, { mutableSetOf() }).add(observer)
+        listDataMessageObserver()
     }
 
     override fun unsubscribeFromReceiveDataMessage(topic: String) {
@@ -357,5 +419,9 @@ class DefaultVideoClientObserver(
 
     private fun forEachVideoClientStateObserver(observerFunction: (observer: AudioVideoObserver) -> Unit) {
         ObserverUtils.notifyObserverOnMainThread(videoClientStateObservers, observerFunction)
+    }
+
+    override fun listDataMessageObserver() {
+        dataMessageObserversByTopic.keys.forEach { println(it); Log.e("PIPPO", it) }
     }
 }

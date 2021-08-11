@@ -184,8 +184,8 @@ class MeetingActivity : AppCompatActivity(),
             primaryExternalMeetingId = joinMeetingResponse.joinInfo.primaryExternalMeetingId
             MeetingSessionConfiguration(
                 CreateMeetingResponse(joinMeetingResponse.joinInfo.meetingResponse.meeting),
-                CreateAttendeeResponse(joinMeetingResponse.joinInfo.attendeeResponse.attendee),
-                ::urlRewriter
+                CreateAttendeeResponse(joinMeetingResponse.joinInfo.attendeeResponse.attendee)
+                //::urlRewriter
             )
         } catch (exception: Exception) {
             logger.error(
