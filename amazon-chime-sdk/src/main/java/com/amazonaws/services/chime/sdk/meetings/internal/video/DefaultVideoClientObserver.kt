@@ -65,6 +65,10 @@ class DefaultVideoClientObserver(
     private val uiScope = CoroutineScope(Dispatchers.Main)
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 
+    override fun onTurnURIsReceived(p0: MutableList<String>?): MutableList<String> {
+        TODO("Not yet implemented")
+    }
+
     override fun isConnecting(client: VideoClient?) {
         logger.info(TAG, "isConnecting")
         forEachVideoClientStateObserver { observer -> observer.onVideoSessionStartedConnecting() }

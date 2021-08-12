@@ -49,7 +49,8 @@ class DefaultDeviceController(
                 }
 
                 override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
-                    audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+                    //audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+                    audioManager.mode = AudioManager.MODE_IN_CALL
                     notifyAudioDeviceChange()
                 }
             }
@@ -70,7 +71,8 @@ class DefaultDeviceController(
                 receiver, IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED)
             )
         }
-        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        //audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        audioManager.mode = AudioManager.MODE_IN_CALL
     }
 
     override fun listAudioDevices(): List<MediaDevice> {
@@ -200,13 +202,16 @@ class DefaultDeviceController(
                     // Sometimes stopBluetoothSco makes isSpeakerphoneOn to be false
                     // calling it before isSpeakerphoneOn
                     stopBluetoothSco()
-                    mode = AudioManager.MODE_IN_COMMUNICATION
+                    //mode = AudioManager.MODE_IN_COMMUNICATION
+                    mode = AudioManager.MODE_IN_CALL
+
                     isBluetoothScoOn = false
                     isSpeakerphoneOn = true
                 }
             MediaDeviceType.AUDIO_BLUETOOTH ->
                 audioManager.apply {
-                    mode = AudioManager.MODE_IN_COMMUNICATION
+                    //mode = AudioManager.MODE_IN_COMMUNICATION
+                    mode = AudioManager.MODE_IN_CALL
                     isSpeakerphoneOn = false
                     startBluetoothSco()
                     isBluetoothScoOn = true
@@ -215,7 +220,8 @@ class DefaultDeviceController(
                 audioManager.apply {
                     stopBluetoothSco()
                     isBluetoothScoOn = false
-                    mode = AudioManager.MODE_IN_COMMUNICATION
+                    //mode = AudioManager.MODE_IN_COMMUNICATION
+                    mode = AudioManager.MODE_IN_CALL
                     isSpeakerphoneOn = false
                 }
         }

@@ -12,7 +12,7 @@
     <string name="additional_options">Additional Options</string>
     <string name="meeting_leave">Leave Meeting</string>
     <string name="meeting_mute">Toggle Mute</string>
-    <string name="test_url"></string>
+    <string name="test_url">https://i74w67yfb7.execute-api.eu-central-1.amazonaws.com/Prod/</string>
     <string name="volume_indicator">Volume Indicator</string>
     <string name="active_speaker_indicator">Active Speaker Indicator</string>
     <string name="switch_camera">Switch Camera</string>
