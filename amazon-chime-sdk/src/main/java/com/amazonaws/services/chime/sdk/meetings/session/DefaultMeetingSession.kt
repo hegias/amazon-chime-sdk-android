@@ -63,21 +63,21 @@ class DefaultMeetingSession @JvmOverloads constructor(
 
         val metricsCollector =
             DefaultClientMetricsCollector()
-        val meetingStatsCollector = DefaultMeetingStatsCollector(logger)
+        val meetingStatsCollector = DefaultMeetingStatsCollector(ConsoleLogger(LogLevel.OFF))
         val eventReporterFactory = DefaultMeetingEventReporterFactory(
             context,
             IngestionConfiguration(
-                context,
                 MeetingEventClientConfiguration(configuration.credentials.joinToken,
-                                                configuration.meetingId,
-                                                configuration.credentials.attendeeId),
+                    configuration.meetingId,
+                    configuration.credentials.attendeeId),
                 configuration.urls.ingestionURL ?: "",
                 configuration.urls.ingestionURL.isNullOrEmpty()
             ),
-        logger)
+            logger!!
+            )
         val eventReporter = eventReporterFactory.createEventReporter()
         eventAnalyticsController = DefaultEventAnalyticsController(
-            logger,
+            logger!!,
             configuration,
             meetingStatsCollector,
             eventReporter
@@ -121,6 +121,7 @@ class DefaultMeetingSession @JvmOverloads constructor(
 
         val videoClientObserver =
             DefaultVideoClientObserver(
+                context,
                 logger!!,
                 turnRequestParams,
                 metricsCollector,
@@ -138,7 +139,7 @@ class DefaultMeetingSession @JvmOverloads constructor(
                 videoClientObserver,
                 configuration,
                 DefaultVideoClientFactory(),
-                eglCoreFactory!!
+                eglCoreFactory!!,
                 eventAnalyticsController
             )
 
@@ -149,7 +150,7 @@ class DefaultMeetingSession @JvmOverloads constructor(
                 logger!!,
                 videoClientController,
                 videoTileFactory,
-                eglCoreFactory!!
+                eglCoreFactory!!,
                 meetingStatsCollector
             )
         videoClientObserver.subscribeToVideoTileChange(videoTileController)
@@ -196,7 +197,7 @@ class DefaultMeetingSession @JvmOverloads constructor(
         val contentShareObserver =
             DefaultContentShareVideoClientObserver(
                 context,
-                logger,
+                logger!!,
                 contentShareTurnRequestParams,
                 metricsCollector,
                 contentShareConfiguration.urls.urlRewriter
@@ -205,16 +206,16 @@ class DefaultMeetingSession @JvmOverloads constructor(
         val contentShareVideoClientController =
             DefaultContentShareVideoClientController(
                 context,
-                logger,
+                logger!!,
                 contentShareObserver,
                 contentShareConfiguration,
                 videoClientFactory,
-                eglCoreFactory
+                eglCoreFactory!!
             )
 
         val contentShareController =
             DefaultContentShareController(
-                logger,
+                logger!!,
                 contentShareVideoClientController
             )
 
