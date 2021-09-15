@@ -192,11 +192,11 @@ class DeviceManagementFragment : Fragment(), DeviceChangeObserver {
 
             // Setting the selection won't immediately callback, so we need to explicitly set the values
             // of the camera capturer before starting it
-            cameraCaptureSource.device = videoDeviceSpinner.getItemAtPosition(videoDeviceSpinnerIndex) as MediaDevice
-            videoPreview.mirror = cameraCaptureSource.device?.type == MediaDeviceType.VIDEO_FRONT_CAMERA
-            cameraCaptureSource.format = videoFormatSpinner.getItemAtPosition(videoFormatSpinnerIndex) as VideoCaptureFormat
+      //      cameraCaptureSource.device = videoDeviceSpinner.getItemAtPosition(videoDeviceSpinnerIndex) as MediaDevice
+       //     videoPreview.mirror = cameraCaptureSource.device?.type == MediaDeviceType.VIDEO_FRONT_CAMERA
+       //     cameraCaptureSource.format = videoFormatSpinner.getItemAtPosition(videoFormatSpinnerIndex) as VideoCaptureFormat
 
-            cameraCaptureSource.start()
+       //     cameraCaptureSource.start()
         }
 
         return view

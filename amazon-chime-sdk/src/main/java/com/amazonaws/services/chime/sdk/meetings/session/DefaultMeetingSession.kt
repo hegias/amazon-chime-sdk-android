@@ -44,7 +44,7 @@ class DefaultMeetingSession @JvmOverloads constructor(
     override var logger: Logger?,
     context: Context,
     var eglCoreFactory: EglCoreFactory?, //= DefaultEglCoreFactory()
-    eventReporterFactory: EventReporterFactory?
+    var eventReporterFactory: EventReporterFactory?
 ) : MeetingSession {
 
     override val audioVideo: AudioVideoFacade
