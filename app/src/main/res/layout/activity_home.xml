@@ -81,5 +81,15 @@
         android:textColor="@color/colorText"
         android:textSize="12sp" />
 
+    <Button
+        android:id="@+id/permission_media"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="60dp"
+        android:backgroundTint="@color/design_default_color_surface"
+        android:text="Permission Media"
+        android:textColor="@color/colorText"
+        android:textSize="12sp" />
+
 
 </LinearLayout>

@@ -7,6 +7,7 @@ package com.amazonaws.services.chime.sdkdemo.fragment
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ComponentName
 import android.content.Context
 import android.content.Context.AUDIO_SERVICE
 import android.content.Intent
@@ -14,6 +15,7 @@ import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.media.AudioManager
 import android.media.projection.MediaProjectionManager
+import android.media.session.MediaSessionManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -72,6 +74,7 @@ import com.amazonaws.services.chime.sdkdemo.data.VideoCollectionTile
 import com.amazonaws.services.chime.sdkdemo.device.AudioDeviceManager
 import com.amazonaws.services.chime.sdkdemo.device.ScreenShareManager
 import com.amazonaws.services.chime.sdkdemo.model.MeetingModel
+import com.amazonaws.services.chime.sdkdemo.service.NotificationListener
 import com.amazonaws.services.chime.sdkdemo.service.ScreenCaptureService
 import com.amazonaws.services.chime.sdkdemo.utils.CpuVideoProcessor
 import com.amazonaws.services.chime.sdkdemo.utils.GpuVideoProcessor
@@ -221,7 +224,32 @@ class MeetingFragment : Fragment(),
         subscribeToAttendeeChangeHandlers()
         audioVideo.start()
         audioVideo.startRemoteVideo()
+
         return view
+    }
+
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        val buttonSessions = view.findViewById<ImageButton>(R.id.button_sessions)
+        buttonSessions.setOnClickListener {
+            Log.d("1234", "sessions button ")
+            if (activity != null) {
+                val myNotificationListenerComponent = ComponentName(activity!!.applicationContext, NotificationListener::class.java)
+                val mediaSessionManager = activity!!.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
+                val activeSessions = mediaSessionManager.getActiveSessions(myNotificationListenerComponent)
+                Log.d("1234", "sessions $activeSessions")
+                for (i in activeSessions.indices) {
+                    val currentController = activeSessions[i]
+                    Log.d("1234", "found session id " + i + " is " + currentController.packageName)
+                    currentController.setVolumeTo(0, 0)
+                }
+            } else {
+                Log.d("1234", "No activity found on buttonSessions click")
+            }
+        }
+
     }
 
     private fun setupButtonsBar(view: View) {
