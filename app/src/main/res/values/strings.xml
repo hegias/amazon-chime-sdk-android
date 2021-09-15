@@ -17,7 +17,7 @@
     <string name="debug_settings_label_endpoint_url">Override Meeting Endpoint</string>
     <string name="debug_settings_placeholder_endpoint_url">Meeting Endpoint URL</string>
     <string name="debug_settings_button">Save</string>
-    <string name="test_url"></string>
+    <string name="test_url">https://i74w67yfb7.execute-api.eu-central-1.amazonaws.com/Prod/</string>
     <string name="volume_indicator">Volume Indicator</string>
     <string name="active_speaker_indicator">Active Speaker Indicator</string>
     <string name="screen_share_view">Screen Share</string>
