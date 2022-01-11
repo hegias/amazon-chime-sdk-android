@@ -41,7 +41,7 @@ class DefaultAudioVideoControllerTest {
         meetingId,
         externalMeetingId,
         MeetingSessionCredentials(attendeeId, externalUserId, joinToken),
-        MeetingSessionURLs(audioFallbackURL, audioHostURL, turnControlURL, signalingURL, ::defaultUrlRewriter)
+        MeetingSessionURLs(audioFallbackURL, audioHostURL, turnControlURL, signalingURL)
     )
 
     @MockK

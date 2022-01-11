@@ -25,8 +25,8 @@ data class MeetingSessionConfiguration(
     @JvmOverloads
     constructor(
         createMeetingResponse: CreateMeetingResponse,
-        createAttendeeResponse: CreateAttendeeResponse,
-        urlRewriter: URLRewriter = ::defaultUrlRewriter
+        createAttendeeResponse: CreateAttendeeResponse
+        // urlRewriter: URLRewriter = ::defaultUrlRewriter
     ) : this(
         createMeetingResponse.Meeting.MeetingId,
         createMeetingResponse.Meeting.ExternalMeetingId,
@@ -39,9 +39,8 @@ data class MeetingSessionConfiguration(
             createMeetingResponse.Meeting.MediaPlacement.AudioFallbackUrl,
             createMeetingResponse.Meeting.MediaPlacement.AudioHostUrl,
             createMeetingResponse.Meeting.MediaPlacement.TurnControlUrl,
-            createMeetingResponse.Meeting.MediaPlacement.SignalingUrl,
-            urlRewriter,
-            createMeetingResponse.Meeting.MediaPlacement.EventIngestionUrl
+            createMeetingResponse.Meeting.MediaPlacement.SignalingUrl
+            //::defaultUrlRewriter
         )
     )
 

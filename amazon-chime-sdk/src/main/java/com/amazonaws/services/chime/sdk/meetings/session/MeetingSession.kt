@@ -15,7 +15,7 @@ import com.amazonaws.services.chime.sdk.meetings.utils.logger.Logger
  */
 interface MeetingSession {
     val configuration: MeetingSessionConfiguration
-    val logger: Logger
+    val logger: Logger?
     val audioVideo: AudioVideoFacade
     val eventAnalyticsController: EventAnalyticsController
 }
