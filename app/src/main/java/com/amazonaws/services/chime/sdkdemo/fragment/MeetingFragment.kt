@@ -1257,7 +1257,7 @@ class MeetingFragment : Fragment(),
         val audioManager = getContext()?.getSystemService(AUDIO_SERVICE) as AudioManager
         Log.d("1234", "audiomanager mode " + audioManager.mode);
 
-        val observer: ContentObserver = object : ContentObserver(Handler(Looper.myLooper())) {
+        val observer: ContentObserver = object : ContentObserver(Looper.myLooper()?.let { Handler(it) }) {
             override fun onChange(selfChange: Boolean, uri: Uri?) {
                 super.onChange(selfChange, uri)
                 val audioManager = getContext()?.getSystemService(AUDIO_SERVICE) as AudioManager
