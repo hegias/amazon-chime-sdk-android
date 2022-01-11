@@ -9,6 +9,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -44,8 +45,8 @@ class HomeActivity : AppCompatActivity() {
 
     private val WEBRTC_PERM = arrayOf(
         Manifest.permission.MODIFY_AUDIO_SETTINGS,
-        Manifest.permission.RECORD_AUDIO,
-        Manifest.permission.CAMERA
+        Manifest.permission.RECORD_AUDIO
+      //  Manifest.permission.CAMERA
     )
 
     private var meetingEditText: EditText? = null
@@ -93,11 +94,12 @@ class HomeActivity : AppCompatActivity() {
         } else if (yourName.isNullOrBlank()) {
             showToast(getString(R.string.user_notification_attendee_name_invalid))
         } else {
-            if (hasPermissionsAlready()) {
-                authenticate(testUrl, meetingID, yourName)
-            } else {
+//            if (hasPermissionsAlready()) {
+//                authenticate(testUrl, meetingID, yourName)
+//            } else {
+    Log.d("1234", "requesting permissions")
                 ActivityCompat.requestPermissions(this, WEBRTC_PERM, WEBRTC_PERMISSION_REQUEST_CODE)
-            }
+//            }
         }
     }
 

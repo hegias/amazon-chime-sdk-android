@@ -69,7 +69,8 @@ class MeetingActivity : AppCompatActivity(),
                     // However the internal default capture would work fine, since it is initialized using
                     // that internally created default EglCoreFactory, and can be smoke tested by removing this
                     // argument and toggling use of custom video source before starting video
-                    meetingSessionModel.eglCoreFactory
+                    meetingSessionModel.eglCoreFactory,
+                        null
                 )
             }
 

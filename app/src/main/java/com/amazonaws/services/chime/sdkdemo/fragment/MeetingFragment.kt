@@ -9,25 +9,27 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.ComponentName
 import android.content.Context
+import android.content.Context.AUDIO_SERVICE
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.database.ContentObserver
+import android.media.AudioManager
 import android.media.projection.MediaProjectionManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.provider.Settings
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ImageButton
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.DiffUtil
@@ -56,11 +58,7 @@ import com.amazonaws.services.chime.sdk.meetings.audiovideo.metric.ObservableMet
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoPauseState
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoTileObserver
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoTileState
-import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CameraCaptureSource
-import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CaptureSourceError
-import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CaptureSourceObserver
-import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.DefaultScreenCaptureSource
-import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.DefaultSurfaceTextureCaptureSourceFactory
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.*
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.EglCoreFactory
 import com.amazonaws.services.chime.sdk.meetings.device.DeviceChangeObserver
 import com.amazonaws.services.chime.sdk.meetings.device.MediaDevice
@@ -113,6 +111,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.util.*
 
 class MeetingFragment : Fragment(),
     RealtimeObserver, AudioVideoObserver, VideoTileObserver,
@@ -218,9 +217,9 @@ class MeetingFragment : Fragment(),
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
+            inflater: LayoutInflater,
+            container: ViewGroup?,
+            savedInstanceState: Bundle?
     ): View? {
         val view: View = inflater.inflate(R.layout.fragment_meeting, container, false)
         val activity = activity as Context
@@ -235,17 +234,17 @@ class MeetingFragment : Fragment(),
         audioDeviceManager = AudioDeviceManager(audioVideo)
         val url = if (getString(R.string.test_url).endsWith("/")) getString(R.string.test_url) else "${getString(R.string.test_url)}/"
         postLogger = PostLogger(
-            appName,
-            activity.getMeetingSessionConfiguration(),
-            "${url}log_meeting_event",
-            LogLevel.INFO
+                appName,
+                activity.getMeetingSessionConfiguration(),
+                "${url}log_meeting_event",
+                LogLevel.INFO
         )
 
         mediaProjectionManager = activity.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         powerManager = activity.getSystemService(Context.POWER_SERVICE) as PowerManager
 
         view.findViewById<TextView>(R.id.textViewMeetingId)?.text = arguments?.getString(
-            HomeActivity.MEETING_ID_KEY
+                HomeActivity.MEETING_ID_KEY
         ) as String
         setupButtonsBar(view)
         setupSubViews(view)
@@ -314,12 +313,12 @@ class MeetingFragment : Fragment(),
             view.findViewById(R.id.recyclerViewVideoCollection)
         recyclerViewVideoCollection.layoutManager = createLinearLayoutManagerForOrientation()
         videoTileAdapter = VideoAdapter(
-            meetingModel.videoStatesInCurrentPage,
-            meetingModel.userPausedVideoTileIds,
-            audioVideo,
-            cameraCaptureSource,
-            context,
-            logger
+                meetingModel.videoStatesInCurrentPage,
+                meetingModel.userPausedVideoTileIds,
+                audioVideo,
+                cameraCaptureSource,
+                context,
+                logger
         )
         recyclerViewVideoCollection.adapter = videoTileAdapter
 
@@ -328,12 +327,12 @@ class MeetingFragment : Fragment(),
         recyclerViewScreenShareCollection.layoutManager = LinearLayoutManager(activity)
         screenTileAdapter =
             VideoAdapter(
-                meetingModel.currentScreenTiles,
-                meetingModel.userPausedVideoTileIds,
-                audioVideo,
-                null,
-                context,
-                logger
+                    meetingModel.currentScreenTiles,
+                    meetingModel.userPausedVideoTileIds,
+                    audioVideo,
+                    null,
+                    context,
+                    logger
             )
         recyclerViewScreenShareCollection.adapter = screenTileAdapter
         recyclerViewScreenShareCollection.visibility = View.GONE
@@ -384,7 +383,7 @@ class MeetingFragment : Fragment(),
         tabLayout = view.findViewById(R.id.tabLayoutMeetingView)
         SubTab.values().forEach {
             tabLayout.addTab(
-                tabLayout.newTab().setText(it.name).setContentDescription("${it.name} Tab")
+                    tabLayout.newTab().setText(it.name).setContentDescription("${it.name} Tab")
             )
         }
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
@@ -471,11 +470,11 @@ class MeetingFragment : Fragment(),
         meetingModel.currentMediaDevices =
             audioVideo.listAudioDevices().filter { device -> device.type != MediaDeviceType.OTHER }
         deviceListAdapter = DeviceAdapter(
-            requireContext(),
-            android.R.layout.simple_list_item_1,
-            meetingModel.currentMediaDevices,
-            audioVideo,
-            audioDeviceManager)
+                requireContext(),
+                android.R.layout.simple_list_item_1,
+                meetingModel.currentMediaDevices,
+                audioVideo,
+                audioDeviceManager)
         deviceAlertDialogBuilder = AlertDialog.Builder(activity)
         deviceAlertDialogBuilder.setTitle(R.string.alert_title_choose_audio)
         deviceAlertDialogBuilder.setNegativeButton(R.string.cancel) { dialog, _ ->
@@ -558,11 +557,11 @@ class MeetingFragment : Fragment(),
                     meetingModel.currentRoster[attendeeInfo.attendeeId]?.let {
                         meetingModel.currentRoster[attendeeInfo.attendeeId] =
                             RosterAttendee(
-                                it.attendeeId,
-                                it.attendeeName,
-                                volumeLevel,
-                                it.signalStrength,
-                                it.isActiveSpeaker
+                                    it.attendeeId,
+                                    it.attendeeName,
+                                    volumeLevel,
+                                    it.signalStrength,
+                                    it.isActiveSpeaker
                             )
                     }
                 }
@@ -577,18 +576,18 @@ class MeetingFragment : Fragment(),
             mutex.withLock {
                 signalUpdates.forEach { (attendeeInfo, signalStrength) ->
                     logWithFunctionName(
-                        "onSignalStrengthChanged",
-                        "${attendeeInfo.externalUserId} $signalStrength",
-                        LogLevel.DEBUG
+                            "onSignalStrengthChanged",
+                            "${attendeeInfo.externalUserId} $signalStrength",
+                            LogLevel.DEBUG
                     )
                     meetingModel.currentRoster[attendeeInfo.attendeeId]?.let {
                         meetingModel.currentRoster[attendeeInfo.attendeeId] =
                             RosterAttendee(
-                                it.attendeeId,
-                                it.attendeeName,
-                                it.volumeLevel,
-                                signalStrength,
-                                it.isActiveSpeaker
+                                    it.attendeeId,
+                                    it.attendeeName,
+                                    it.volumeLevel,
+                                    signalStrength,
+                                    it.isActiveSpeaker
                             )
                     }
                 }
@@ -611,13 +610,13 @@ class MeetingFragment : Fragment(),
                         notifyHandler("$name took over the screen share")
                     }
                     meetingModel.currentRoster.getOrPut(
-                        attendeeId,
-                        {
-                            RosterAttendee(
-                                attendeeId,
-                                getAttendeeName(attendeeId, externalUserId)
-                            )
-                        })
+                            attendeeId,
+                            {
+                                RosterAttendee(
+                                        attendeeId,
+                                        getAttendeeName(attendeeId, externalUserId)
+                                )
+                            })
                 }
 
                 rosterAdapter.notifyDataSetChanged()
@@ -630,7 +629,7 @@ class MeetingFragment : Fragment(),
             mutex.withLock {
                 attendeeInfo.forEach { (attendeeId, _) ->
                     meetingModel.currentRoster.remove(
-                        attendeeId
+                            attendeeId
                     )
                 }
 
@@ -643,8 +642,8 @@ class MeetingFragment : Fragment(),
         attendeeInfo.forEach { (_, externalUserId) ->
             notifyHandler("$externalUserId dropped")
             logWithFunctionName(
-                object {}.javaClass.enclosingMethod?.name,
-                "$externalUserId dropped"
+                    object {}.javaClass.enclosingMethod?.name,
+                    "$externalUserId dropped"
             )
         }
 
@@ -652,7 +651,7 @@ class MeetingFragment : Fragment(),
             mutex.withLock {
                 attendeeInfo.forEach { (attendeeId, _) ->
                     meetingModel.currentRoster.remove(
-                        attendeeId
+                            attendeeId
                     )
                 }
 
@@ -664,8 +663,8 @@ class MeetingFragment : Fragment(),
     override fun onAttendeesMuted(attendeeInfo: Array<AttendeeInfo>) {
         attendeeInfo.forEach { (attendeeId, externalUserId) ->
             logWithFunctionName(
-                object {}.javaClass.enclosingMethod?.name,
-                "Attendee with attendeeId $attendeeId and externalUserId $externalUserId muted"
+                    object {}.javaClass.enclosingMethod?.name,
+                    "Attendee with attendeeId $attendeeId and externalUserId $externalUserId muted"
             )
         }
     }
@@ -673,8 +672,8 @@ class MeetingFragment : Fragment(),
     override fun onAttendeesUnmuted(attendeeInfo: Array<AttendeeInfo>) {
         attendeeInfo.forEach { (attendeeId, externalUserId) ->
             logger.info(
-                TAG,
-                "Attendee with attendeeId $attendeeId and externalUserId $externalUserId unmuted"
+                    TAG,
+                    "Attendee with attendeeId $attendeeId and externalUserId $externalUserId unmuted"
             )
         }
     }
@@ -688,11 +687,11 @@ class MeetingFragment : Fragment(),
                     if (activeSpeakers.contains(attendee.attendeeId) != attendee.isActiveSpeaker) {
                         meetingModel.currentRoster[attendee.attendeeId] =
                             RosterAttendee(
-                                attendee.attendeeId,
-                                attendee.attendeeName,
-                                attendee.volumeLevel,
-                                attendee.signalStrength,
-                                !attendee.isActiveSpeaker
+                                    attendee.attendeeId,
+                                    attendee.attendeeName,
+                                    attendee.volumeLevel,
+                                    attendee.signalStrength,
+                                    !attendee.isActiveSpeaker
                             )
                         needUpdate = true
                     }
@@ -712,9 +711,9 @@ class MeetingFragment : Fragment(),
         val scoresStr =
             scores.map { entry -> "${entry.key.externalUserId}: ${entry.value}" }.joinToString(",")
         logWithFunctionName(
-            object {}.javaClass.enclosingMethod?.name,
-            scoresStr,
-            LogLevel.DEBUG
+                object {}.javaClass.enclosingMethod?.name,
+                scoresStr,
+                LogLevel.DEBUG
         )
     }
 
@@ -801,15 +800,15 @@ class MeetingFragment : Fragment(),
 
     private fun toggleFlashlight() {
         logger.info(
-            TAG,
-            "Toggling flashlight from ${cameraCaptureSource.torchEnabled} to ${!cameraCaptureSource.torchEnabled}"
+                TAG,
+                "Toggling flashlight from ${cameraCaptureSource.torchEnabled} to ${!cameraCaptureSource.torchEnabled}"
         )
         if (!meetingModel.isUsingCameraCaptureSource) {
             logger.warn(TAG, "Cannot toggle flashlight without using custom camera capture source")
             Toast.makeText(
-                context,
-                getString(R.string.user_notification_flashlight_custom_source_error),
-                Toast.LENGTH_SHORT
+                    context,
+                    getString(R.string.user_notification_flashlight_custom_source_error),
+                    Toast.LENGTH_SHORT
             ).show()
             return
         }
@@ -818,9 +817,9 @@ class MeetingFragment : Fragment(),
         if (cameraCaptureSource.torchEnabled != desiredFlashlightEnabled) {
             logger.warn(TAG, "Flashlight failed to toggle")
             Toast.makeText(
-                context,
-                getString(R.string.user_notification_flashlight_unavailable_error),
-                Toast.LENGTH_SHORT
+                    context,
+                    getString(R.string.user_notification_flashlight_unavailable_error),
+                    Toast.LENGTH_SHORT
             ).show()
             return
         }
@@ -830,24 +829,24 @@ class MeetingFragment : Fragment(),
         if (!meetingModel.isUsingCameraCaptureSource) {
             logger.warn(TAG, "Cannot toggle filter without using custom camera capture source")
             Toast.makeText(
-                context,
-                getString(R.string.user_notification_filter_custom_source_error),
-                Toast.LENGTH_SHORT
+                    context,
+                    getString(R.string.user_notification_filter_custom_source_error),
+                    Toast.LENGTH_SHORT
             ).show()
             return
         }
         if (meetingModel.isUsingGpuVideoProcessor) {
             logger.warn(TAG, "Cannot toggle filter when other filter is enabled")
             Toast.makeText(
-                context,
-                getString(R.string.user_notification_filter_both_enabled_error),
-                Toast.LENGTH_SHORT
+                    context,
+                    getString(R.string.user_notification_filter_both_enabled_error),
+                    Toast.LENGTH_SHORT
             ).show()
             return
         }
         logger.info(
-            TAG,
-            "Toggling CPU demo filter from $meetingModel.isUsingCpuVideoProcessor to ${!meetingModel.isUsingCpuVideoProcessor}"
+                TAG,
+                "Toggling CPU demo filter from $meetingModel.isUsingCpuVideoProcessor to ${!meetingModel.isUsingCpuVideoProcessor}"
         )
         meetingModel.isUsingCpuVideoProcessor = !meetingModel.isUsingCpuVideoProcessor
         if (meetingModel.isLocalVideoStarted) {
@@ -859,24 +858,24 @@ class MeetingFragment : Fragment(),
         if (!meetingModel.isUsingCameraCaptureSource) {
             logger.warn(TAG, "Cannot toggle filter without using custom camera capture source")
             Toast.makeText(
-                context,
-                getString(R.string.user_notification_filter_custom_source_error),
-                Toast.LENGTH_SHORT
+                    context,
+                    getString(R.string.user_notification_filter_custom_source_error),
+                    Toast.LENGTH_SHORT
             ).show()
             return
         }
         if (meetingModel.isUsingCpuVideoProcessor) {
             logger.warn(TAG, "Cannot toggle filter when other filter is enabled")
             Toast.makeText(
-                context,
-                getString(R.string.user_notification_filter_both_enabled_error),
-                Toast.LENGTH_SHORT
+                    context,
+                    getString(R.string.user_notification_filter_both_enabled_error),
+                    Toast.LENGTH_SHORT
             ).show()
             return
         }
         logger.info(
-            TAG,
-            "Toggling GPU demo filter from $meetingModel.isUsingGpuVideoProcessor to ${!meetingModel.isUsingGpuVideoProcessor}"
+                TAG,
+                "Toggling GPU demo filter from $meetingModel.isUsingGpuVideoProcessor to ${!meetingModel.isUsingGpuVideoProcessor}"
         )
         meetingModel.isUsingGpuVideoProcessor = !meetingModel.isUsingGpuVideoProcessor
         if (meetingModel.isLocalVideoStarted) {
@@ -886,8 +885,8 @@ class MeetingFragment : Fragment(),
 
     private fun toggleCustomCaptureSource() {
         logger.info(
-            TAG,
-            "Toggling using custom camera source from $meetingModel.isUsingCameraCaptureSource to ${!meetingModel.isUsingCameraCaptureSource}"
+                TAG,
+                "Toggling using custom camera source from $meetingModel.isUsingCameraCaptureSource to ${!meetingModel.isUsingCameraCaptureSource}"
         )
         val wasUsingCameraCaptureSource = meetingModel.isUsingCameraCaptureSource
         meetingModel.isUsingCameraCaptureSource = !meetingModel.isUsingCameraCaptureSource
@@ -905,8 +904,8 @@ class MeetingFragment : Fragment(),
             screenShareManager?.stop(isBound)
         } else {
             startActivityForResult(
-                mediaProjectionManager.createScreenCaptureIntent(),
-                SCREEN_CAPTURE_REQUEST_CODE
+                    mediaProjectionManager.createScreenCaptureIntent(),
+                    SCREEN_CAPTURE_REQUEST_CODE
             )
         }
     }
@@ -1082,20 +1081,20 @@ class MeetingFragment : Fragment(),
     }
 
     override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
+            requestCode: Int,
+            permissions: Array<out String>,
+            grantResults: IntArray
     ) {
         when (requestCode) {
             WEBRTC_PERMISSION_REQUEST_CODE -> {
                 val isMissingPermission: Boolean =
-                    grantResults.isEmpty() || grantResults.any { PackageManager.PERMISSION_GRANTED != it }
+                        grantResults.isEmpty() || grantResults.any { PackageManager.PERMISSION_GRANTED != it }
 
                 if (isMissingPermission) {
                     Toast.makeText(
-                        context,
-                        getString(R.string.user_notification_permission_error),
-                        Toast.LENGTH_SHORT
+                            context,
+                            getString(R.string.user_notification_permission_error),
+                            Toast.LENGTH_SHORT
                     ).show()
                 } else {
                     startLocalVideo()
@@ -1110,9 +1109,9 @@ class MeetingFragment : Fragment(),
         if (SCREEN_CAPTURE_REQUEST_CODE == requestCode) {
             if (resultCode != Activity.RESULT_OK) {
                 Toast.makeText(
-                    context,
-                    getString(R.string.user_notification_screen_share_permission_error),
-                    Toast.LENGTH_LONG
+                        context,
+                        getString(R.string.user_notification_screen_share_permission_error),
+                        Toast.LENGTH_LONG
                 ).show()
             } else {
                 data?.let { startScreenShare(resultCode, it, requireContext()) }
@@ -1182,7 +1181,7 @@ class MeetingFragment : Fragment(),
     override fun onContentShareStarted() {
         notifyHandler("Content share started")
         logWithFunctionName(
-            object {}.javaClass.enclosingMethod?.name
+                object {}.javaClass.enclosingMethod?.name
         )
         meetingModel.isSharingContent = true
     }
@@ -1190,8 +1189,8 @@ class MeetingFragment : Fragment(),
     override fun onContentShareStopped(status: ContentShareStatus) {
         notifyHandler("Content share stopped with status ${status.statusCode}")
         logWithFunctionName(
-            object {}.javaClass.enclosingMethod?.name,
-            "$status"
+                object {}.javaClass.enclosingMethod?.name,
+                "$status"
         )
         meetingModel.isSharingContent = false
     }
@@ -1230,23 +1229,23 @@ class MeetingFragment : Fragment(),
 
     override fun onAudioSessionStartedConnecting(reconnecting: Boolean) {
         notifyHandler(
-            "Audio started connecting. reconnecting: $reconnecting"
+                "Audio started connecting. reconnecting: $reconnecting"
         )
         logWithFunctionName(
-            object {}.javaClass.enclosingMethod?.name,
-            "reconnecting: $reconnecting"
+                object {}.javaClass.enclosingMethod?.name,
+                "reconnecting: $reconnecting"
         )
     }
 
     override fun onAudioSessionStarted(reconnecting: Boolean) {
         notifyHandler(
-            "Audio successfully started. reconnecting: $reconnecting"
+                "Audio successfully started. reconnecting: $reconnecting"
         )
         // Start Amazon Voice Focus as soon as audio session started
         setVoiceFocusEnabled(true)
         logWithFunctionName(
-            object {}.javaClass.enclosingMethod?.name,
-            "reconnecting: $reconnecting"
+                object {}.javaClass.enclosingMethod?.name,
+                "reconnecting: $reconnecting"
         )
 
         val cachedDevice = (activity as MeetingActivity).getCachedDevice()
@@ -1255,6 +1254,27 @@ class MeetingFragment : Fragment(),
             audioDeviceManager.setActiveAudioDevice(it)
             (activity as MeetingActivity).resetCachedDevice()
         }
+        val audioManager = getContext()?.getSystemService(AUDIO_SERVICE) as AudioManager
+        Log.d("1234", "audiomanager mode " + audioManager.mode);
+
+        val observer: ContentObserver = object : ContentObserver(Handler(Looper.myLooper())) {
+            override fun onChange(selfChange: Boolean, uri: Uri?) {
+                super.onChange(selfChange, uri)
+                val audioManager = getContext()?.getSystemService(AUDIO_SERVICE) as AudioManager
+                Log.d("1234", "new ONCHANGE system settings " + uri.toString() + " current mode " + audioManager!!.mode)
+                // Log.d("1234", "ONCHANGE stream MUSIC max " + audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) );
+                Log.d("1234", "ONCHANGE stream MUSIC current " + audioManager!!.getStreamVolume(AudioManager.STREAM_MUSIC))
+                // Log.d("1234", "ONCHANGE stream VOICe CALL max " + audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL) );
+                Log.d("1234", "ONCHANGE stream VOICe CALL current " + audioManager!!.getStreamVolume(AudioManager.STREAM_VOICE_CALL))
+                Log.d("1234", "ONCHANGE stream STREAM_ACCESSIBILITY current " + audioManager!!.getStreamVolume(AudioManager.STREAM_ACCESSIBILITY))
+                Log.d("1234", "ONCHANGE stream STREAM_ALARM current " + audioManager!!.getStreamVolume(AudioManager.STREAM_ALARM))
+                Log.d("1234", "ONCHANGE stream STREAM_DTMF current " + audioManager!!.getStreamVolume(AudioManager.STREAM_DTMF))
+                Log.d("1234", "ONCHANGE stream STREAM_NOTIFICATION current " + audioManager!!.getStreamVolume(AudioManager.STREAM_NOTIFICATION))
+                Log.d("1234", "ONCHANGE stream STREAM_RING current " + audioManager!!.getStreamVolume(AudioManager.STREAM_RING))
+                Log.d("1234", "ONCHANGE stream STREAM_SYSTEM current " + audioManager!!.getStreamVolume(AudioManager.STREAM_SYSTEM))
+            }
+        }
+        getContext()?.getContentResolver()?.registerContentObserver(Settings.System.CONTENT_URI, true, observer)
     }
 
     override fun onAudioSessionDropped() {
@@ -1264,11 +1284,11 @@ class MeetingFragment : Fragment(),
 
     override fun onAudioSessionStopped(sessionStatus: MeetingSessionStatus) {
         notifyHandler(
-            "Audio stopped for reason: ${sessionStatus.statusCode}"
+                "Audio stopped for reason: ${sessionStatus.statusCode}"
         )
         logWithFunctionName(
-            object {}.javaClass.enclosingMethod?.name,
-            "${sessionStatus.statusCode}"
+                object {}.javaClass.enclosingMethod?.name,
+                "${sessionStatus.statusCode}"
         )
 
         if (sessionStatus.statusCode != MeetingSessionStatusCode.OK) {
@@ -1284,19 +1304,19 @@ class MeetingFragment : Fragment(),
 
     override fun onConnectionRecovered() {
         notifyHandler(
-            "Connection quality has recovered"
+                "Connection quality has recovered"
         )
         logWithFunctionName(
-            object {}.javaClass.enclosingMethod?.name
+                object {}.javaClass.enclosingMethod?.name
         )
     }
 
     override fun onConnectionBecamePoor() {
         notifyHandler(
-            "Connection quality has become poor"
+                "Connection quality has become poor"
         )
         logWithFunctionName(
-            object {}.javaClass.enclosingMethod?.name
+                object {}.javaClass.enclosingMethod?.name
         )
     }
 
@@ -1311,27 +1331,27 @@ class MeetingFragment : Fragment(),
 
         notifyHandler(message)
         logWithFunctionName(
-            object {}.javaClass.enclosingMethod?.name,
-            "${sessionStatus.statusCode}"
+                object {}.javaClass.enclosingMethod?.name,
+                "${sessionStatus.statusCode}"
         )
     }
 
     override fun onVideoSessionStopped(sessionStatus: MeetingSessionStatus) {
         notifyHandler(
-            "Video stopped for reason: ${sessionStatus.statusCode}"
+                "Video stopped for reason: ${sessionStatus.statusCode}"
         )
         logWithFunctionName(
-            object {}.javaClass.enclosingMethod?.name,
-            "${sessionStatus.statusCode}"
+                object {}.javaClass.enclosingMethod?.name,
+                "${sessionStatus.statusCode}"
         )
     }
 
     override fun onVideoTileAdded(tileState: VideoTileState) {
         uiScope.launch {
             logger.info(
-                TAG,
-                "Video tile added, tileId: ${tileState.tileId}, attendeeId: ${tileState.attendeeId}" +
-                        ", isContent ${tileState.isContent} with size ${tileState.videoStreamContentWidth}*${tileState.videoStreamContentHeight}"
+                    TAG,
+                    "Video tile added, tileId: ${tileState.tileId}, attendeeId: ${tileState.attendeeId}" +
+                            ", isContent ${tileState.isContent} with size ${tileState.videoStreamContentWidth}*${tileState.videoStreamContentHeight}"
             )
             if (tileState.isContent && meetingModel.currentScreenTiles.none { it.videoTileState.tileId == tileState.tileId }) {
                 showVideoTile(tileState)
@@ -1351,8 +1371,8 @@ class MeetingFragment : Fragment(),
             val tileId: Int = tileState.tileId
 
             logger.info(
-                TAG,
-                "Video track removed, tileId: $tileId, attendeeId: ${tileState.attendeeId}"
+                    TAG,
+                    "Video track removed, tileId: $tileId, attendeeId: ${tileState.attendeeId}"
             )
             audioVideo.unbindVideoView(tileId)
             if (tileState.isContent) {
@@ -1379,8 +1399,8 @@ class MeetingFragment : Fragment(),
             val attendeeName =
                 meetingModel.currentRoster[tileState.attendeeId]?.attendeeName ?: ""
             logWithFunctionName(
-                object {}.javaClass.enclosingMethod?.name,
-                "$attendeeName video paused"
+                    object {}.javaClass.enclosingMethod?.name,
+                    "$attendeeName video paused"
             )
         }
     }
@@ -1392,15 +1412,15 @@ class MeetingFragment : Fragment(),
         }
         val attendeeName = meetingModel.currentRoster[tileState.attendeeId]?.attendeeName ?: ""
         logWithFunctionName(
-            object {}.javaClass.enclosingMethod?.name,
-            "$attendeeName video resumed"
+                object {}.javaClass.enclosingMethod?.name,
+                "$attendeeName video resumed"
         )
     }
 
     override fun onVideoTileSizeChanged(tileState: VideoTileState) {
         logger.info(
-            TAG,
-            "Video stream content size changed to ${tileState.videoStreamContentWidth}*${tileState.videoStreamContentHeight} for tileId: ${tileState.tileId}"
+                TAG,
+                "Video stream content size changed to ${tileState.videoStreamContentWidth}*${tileState.videoStreamContentHeight} for tileId: ${tileState.tileId}"
         )
     }
 
@@ -1422,21 +1442,21 @@ class MeetingFragment : Fragment(),
         val text = editTextMessage.text.toString().trim()
         if (text.isBlank()) return
         audioVideo.realtimeSendDataMessage(
-            DATA_MESSAGE_TOPIC,
-            text,
-            DATA_MESSAGE_LIFETIME_MS
+                DATA_MESSAGE_TOPIC,
+                text,
+                DATA_MESSAGE_LIFETIME_MS
         )
         editTextMessage.text.clear()
         // echo the message to the handler
         onDataMessageReceived(
-            DataMessage(
-                Calendar.getInstance().timeInMillis,
-                DATA_MESSAGE_TOPIC,
-                text.toByteArray(),
-                credentials.attendeeId,
-                credentials.externalUserId,
-                false
-            )
+                DataMessage(
+                        Calendar.getInstance().timeInMillis,
+                        DATA_MESSAGE_TOPIC,
+                        text.toByteArray(),
+                        credentials.attendeeId,
+                        credentials.externalUserId,
+                        false
+                )
         )
     }
 
@@ -1445,12 +1465,12 @@ class MeetingFragment : Fragment(),
             if (dataMessage.timestampMs <= meetingModel.lastReceivedMessageTimestamp) return
             meetingModel.lastReceivedMessageTimestamp = dataMessage.timestampMs
             meetingModel.currentMessages.add(
-                Message(
-                    getAttendeeName(dataMessage.senderAttendeeId, dataMessage.senderExternalUserId),
-                    dataMessage.timestampMs,
-                    dataMessage.text(),
-                    isSelfAttendee(dataMessage.senderAttendeeId)
-                )
+                    Message(
+                            getAttendeeName(dataMessage.senderAttendeeId, dataMessage.senderExternalUserId),
+                            dataMessage.timestampMs,
+                            dataMessage.text(),
+                            isSelfAttendee(dataMessage.senderAttendeeId)
+                    )
             )
             messageAdapter.notifyItemInserted(meetingModel.currentMessages.size - 1)
             scrollToLastMessage()
@@ -1476,7 +1496,7 @@ class MeetingFragment : Fragment(),
     }
 
     private fun notifyHandler(
-        toastMessage: String
+            toastMessage: String
     ) {
         uiScope.launch {
             activity?.let {
@@ -1486,9 +1506,9 @@ class MeetingFragment : Fragment(),
     }
 
     private fun logWithFunctionName(
-        fnName: String?,
-        msg: String = "",
-        logLevel: LogLevel = LogLevel.INFO
+            fnName: String?,
+            msg: String = "",
+            logLevel: LogLevel = LogLevel.INFO
     ) {
         val newMsg = if (fnName == null) msg else "[Function] [$fnName]: $msg"
         when (logLevel) {
@@ -1572,8 +1592,8 @@ class MeetingFragment : Fragment(),
         // Store the logs
         attributes.putAll(audioVideo.getCommonEventAttributes())
         postLogger.info(TAG, gson.toJson(mutableMapOf(
-            "name" to name,
-            "attributes" to attributes
+                "name" to name,
+                "attributes" to attributes
         )))
 
         logger.info(TAG, "$name ${attributes.toJsonString()}")
